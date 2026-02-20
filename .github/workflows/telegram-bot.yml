@@ -1,8 +1,7 @@
 name: Telegram Bot — Audio to Video
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  
   workflow_dispatch:
 
 jobs:
