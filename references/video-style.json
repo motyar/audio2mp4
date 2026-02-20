@@ -4,7 +4,7 @@
     "type": "solid"
   },
   "text": {
-    "fontFamily": "Arial, sans-serif",
+    "fontFamily": "Noto Sans, Noto Sans CJK SC, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Hebrew, Noto Color Emoji, Arial, sans-serif",
     "fontWeight": "bold",
     "fontSize": 90,
     "color": "#FFFFFF",

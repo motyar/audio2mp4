@@ -230,6 +230,14 @@ function buildSvg(chunk, style, mode, activeLang) {
   }
 
   return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"${langAttr}>
+  <defs>
+    <style type="text/css">
+      text {
+        text-rendering: optimizeLegibility;
+        shape-rendering: geometricPrecision;
+      }
+    </style>
+  </defs>
   <rect width="${W}" height="${H}" fill="${bg}"/>
   ${textElements}
 </svg>`;
@@ -246,7 +254,10 @@ async function renderFrame(svgString) {
     console.error('ERROR: sharp is not installed. Run: npm install sharp');
     process.exit(1);
   }
-  return sharp(Buffer.from(svgString)).png().toBuffer();
+  // Ensure proper text rendering with embedded fonts and Unicode support
+  return sharp(Buffer.from(svgString), {
+    density: 300  // Higher density for better text rendering
+  }).png().toBuffer();
 }
 
 // ---------------------------------------------------------------------------
