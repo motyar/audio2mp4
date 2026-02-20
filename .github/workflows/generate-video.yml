@@ -1,0 +1,97 @@
+name: Generate Subtitle Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      audio_url:
+        description: 'Public URL to audio file (mp3/wav/m4a) — leave empty to use audio/input.mp3 from repo'
+        required: false
+        default: ''
+      subtitle_mode:
+        description: 'Subtitle animation mode'
+        required: false
+        default: 'chunk'
+        type: choice
+        options:
+          - chunk
+          - word
+          - karaoke
+      whisper_model:
+        description: 'Whisper model size (small recommended)'
+        required: false
+        default: 'small'
+        type: choice
+        options:
+          - tiny
+          - base
+          - small
+          - medium
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: whisper-${{ github.event.inputs.whisper_model || 'small' }}-v1
+
+      - name: Install faster-whisper
+        run: pip install faster-whisper
+
+      - name: Install Node dependencies
+        run: npm install sharp
+
+      - name: Download audio (if URL provided)
+        if: ${{ github.event.inputs.audio_url != '' }}
+        run: |
+          mkdir -p audio
+          curl -L "${{ github.event.inputs.audio_url }}" -o audio/input.mp3
+
+      - name: Transcribe audio
+        run: |
+          python3 scripts/transcribe.py \
+            --audio audio/input.mp3 \
+            --output words.json \
+            --model ${{ github.event.inputs.whisper_model || 'small' }}
+
+      - name: Extract detected language
+        run: |
+          DETECTED_LANG=$(node -e "const w=require('./words.json'); console.log(w.language || 'en')")
+          echo "DETECTED_LANG=$DETECTED_LANG" >> $GITHUB_ENV
+          echo "Detected language: $DETECTED_LANG"
+
+      - name: Generate video
+        run: |
+          node scripts/generate-video.js \
+            --words words.json \
+            --audio audio/input.mp3 \
+            --output output.mp4 \
+            --style references/video-style.json \
+            --mode ${{ github.event.inputs.subtitle_mode || 'chunk' }} \
+            --lang ${{ env.DETECTED_LANG }}
+
+      - name: Upload video artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: subtitle-video-${{ github.run_number }}
+          path: output.mp4
+          retention-days: 7

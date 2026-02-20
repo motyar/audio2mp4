@@ -1,0 +1,113 @@
+name: Telegram Bot — Audio to Video
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node deps
+        run: npm install sharp
+
+      - name: Poll Telegram for latest audio
+        id: poll
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
+        run: |
+          node scripts/telegram-poll.js \
+            --output audio/input \
+            --meta telegram-meta.json
+        continue-on-error: true
+
+      - name: Check if audio was found
+        id: check
+        run: |
+          if ls audio/input.* 1>/dev/null 2>&1; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "Audio file found."
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "No new audio messages. Skipping."
+          fi
+
+      - name: Cache Whisper model
+        if: steps.check.outputs.found == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: whisper-small-v1
+
+      - name: Install faster-whisper
+        if: steps.check.outputs.found == 'true'
+        run: pip install faster-whisper
+
+      - name: Transcribe audio (auto-detect language)
+        if: steps.check.outputs.found == 'true'
+        run: |
+          AUDIO_FILE=$(ls audio/input.* | head -1)
+          python3 scripts/transcribe.py \
+            --audio "$AUDIO_FILE" \
+            --output words.json \
+            --model small
+
+      - name: Extract detected language
+        if: steps.check.outputs.found == 'true'
+        run: |
+          DETECTED_LANG=$(node -e "const w=require('./words.json'); console.log(w.language || 'en')")
+          echo "DETECTED_LANG=$DETECTED_LANG" >> $GITHUB_ENV
+          echo "Detected language: $DETECTED_LANG"
+
+      - name: Generate video
+        if: steps.check.outputs.found == 'true'
+        run: |
+          AUDIO_FILE=$(ls audio/input.* | head -1)
+          node scripts/generate-video.js \
+            --words words.json \
+            --audio "$AUDIO_FILE" \
+            --output output.mp4 \
+            --style references/video-style.json \
+            --mode chunk \
+            --lang ${{ env.DETECTED_LANG }}
+
+      - name: Send video back to Telegram
+        if: steps.check.outputs.found == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          node scripts/telegram-reply.js \
+            --video output.mp4 \
+            --meta telegram-meta.json \
+            --mode chunk \
+            --lang ${{ env.DETECTED_LANG }}
+
+      - name: Update Telegram offset in repo
+        if: steps.check.outputs.found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add references/telegram-offset.json
+          git commit -m "chore: update telegram offset [skip ci]" || echo "No changes to commit"
+          git push
