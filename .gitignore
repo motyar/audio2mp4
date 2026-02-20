@@ -1,0 +1,7 @@
+node_modules/
+output.mp4
+words.json
+telegram-meta.json
+audio/input.*
+*.log
+.DS_Store

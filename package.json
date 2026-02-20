@@ -1,0 +1,14 @@
+{
+  "name": "audio2mp4",
+  "version": "1.0.0",
+  "description": "Automated audio-to-subtitle-video pipeline",
+  "main": "scripts/generate-video.js",
+  "scripts": {
+    "transcribe": "python3 scripts/transcribe.py --audio audio/input.mp3 --output words.json --model small",
+    "generate": "node scripts/generate-video.js --words words.json --audio audio/input.mp3 --output output.mp4 --mode chunk",
+    "pipeline": "npm run transcribe && npm run generate"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0"
+  }
+}
