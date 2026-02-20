@@ -150,7 +150,7 @@ For a 60-second audio clip with `chunk` mode:
 |---|---|
 | GitHub Actions minutes | **Free** (2000 min/month on free tier) |
 | faster-whisper | **Free** (runs locally on runner) |
-| FFmpeg | **Free** (pre-installed on ubuntu-latest) |
+| FFmpeg | **Free** (installed via apt-get in workflow) |
 | sharp | **Free** (open source npm package) |
 | **Total** | **$0.00** |
 
@@ -191,7 +191,7 @@ Send any audio or voice message to your bot → receive the subtitle video withi
 Make sure `audio/input.mp3` exists in the repo, or provide an `audio_url`.
 
 ### "ffmpeg: command not found"
-This shouldn't happen on `ubuntu-latest`. If running locally, install FFmpeg: `apt-get install ffmpeg`.
+FFmpeg is automatically installed by the workflow. If running locally, install FFmpeg: `apt-get install ffmpeg` (or `brew install ffmpeg` on macOS).
 
 ### "sharp is not installed"
 Run `npm install sharp` before running `generate-video.js`.
