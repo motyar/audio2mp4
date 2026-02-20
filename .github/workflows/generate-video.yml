@@ -60,8 +60,11 @@ jobs:
       - name: Install Node dependencies
         run: npm install sharp
 
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji
+          fc-cache -f -v
 
       - name: Download audio (if URL provided)
         if: ${{ github.event.inputs.audio_url != '' }}
